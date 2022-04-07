@@ -61,6 +61,7 @@ include { BOWTIE2_REMOVAL_BUILD as BOWTIE2_HOST_REMOVAL_BUILD } from '../modules
 include { BOWTIE2_REMOVAL_ALIGN as BOWTIE2_HOST_REMOVAL_ALIGN } from '../modules/local/bowtie2_removal_align'       addParams( options: modules['bowtie2_host_removal_align'] )
 include { BOWTIE2_REMOVAL_BUILD as BOWTIE2_PHIX_REMOVAL_BUILD } from '../modules/local/bowtie2_removal_build'
 include { BOWTIE2_REMOVAL_ALIGN as BOWTIE2_PHIX_REMOVAL_ALIGN } from '../modules/local/bowtie2_removal_align'       addParams( options: modules['bowtie2_phix_removal_align'] )
+include { BOWTIE2_HOST_REMOVAL_ALIGN_PRE_INDEX                } from '../modules/local/bowtie2_removal_align'       addParams( options: modules['bowtie2_host_removal_align'] )
 include { PORECHOP                                            } from '../modules/local/porechop'
 include { NANOLYSE                                            } from '../modules/local/nanolyse'                    addParams( options: modules['nanolyse']                   )
 include { FILTLONG                                            } from '../modules/local/filtlong'
@@ -231,10 +232,12 @@ workflow MAG {
     ch_software_versions = ch_software_versions.mix(FASTP.out.version.first().ifEmpty(null))
 
     if (params.host_fasta){
-        BOWTIE2_HOST_REMOVAL_BUILD (
-            ch_host_fasta
-        )
-        ch_host_bowtie2index = BOWTIE2_HOST_REMOVAL_BUILD.out.index
+        if (!params.pre_built_host_index) {
+            BOWTIE2_HOST_REMOVAL_BUILD (
+                ch_host_fasta
+            )
+            ch_host_bowtie2index = BOWTIE2_HOST_REMOVAL_BUILD.out.index
+        }
     }
     ch_bowtie2_removal_host_multiqc = Channel.empty()
     if (params.host_fasta || params.host_genome){
@@ -245,6 +248,27 @@ workflow MAG {
         ch_short_reads = BOWTIE2_HOST_REMOVAL_ALIGN.out.reads
         ch_bowtie2_removal_host_multiqc = BOWTIE2_HOST_REMOVAL_ALIGN.out.log
         ch_software_versions = ch_software_versions.mix(BOWTIE2_HOST_REMOVAL_ALIGN.out.version.first().ifEmpty(null))
+    }
+
+    if (params.pre_built_host_index) {
+        if (params.pre_built_host_index) {
+            ch_host_bowtie2index = Channel.fromPath('/scratch/vpagano/mag/bt2_index')
+            BOWTIE2_HOST_REMOVAL_ALIGN_PRE_INDEX (
+                ch_short_reads,
+                ch_host_bowtie2index
+            )
+            ch_short_reads = BOWTIE2_HOST_REMOVAL_ALIGN_PRE_INDEX.out.reads
+            ch_bowtie2_removal_host_multiqc = BOWTIE2_HOST_REMOVAL_ALIGN_PRE_INDEX.out.log
+            ch_software_versions = ch_software_versions.mix(BOWTIE2_HOST_REMOVAL_ALIGN_PRE_INDEX.out.version.first().ifEmpty(null))
+        } else {
+            BOWTIE2_HOST_REMOVAL_ALIGN (
+                ch_short_reads,
+                ch_host_bowtie2index
+            )
+            ch_short_reads = BOWTIE2_HOST_REMOVAL_ALIGN.out.reads
+            ch_bowtie2_removal_host_multiqc = BOWTIE2_HOST_REMOVAL_ALIGN.out.log
+            ch_software_versions = ch_software_versions.mix(BOWTIE2_HOST_REMOVAL_ALIGN.out.version.first().ifEmpty(null))
+        }
     }
 
     if(!params.keep_phix) {
