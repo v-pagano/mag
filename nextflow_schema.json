@@ -316,6 +316,11 @@
                     "help_text": "This parameter is mutually exclusive with `--host_genome`. Host read removal is done with Bowtie2. \nBoth the iGenomes FASTA file as well as corresponding, already pre-built Bowtie 2 index files will be used.",
                     "description": "Name of iGenomes reference for host contamination removal."
                 },
+                "pre_built_host_index": {
+                    "type": "boolean",
+                    "help_text": "Use pre-built combined index",
+                    "description": "Use pre-built combined index"
+                },
                 "host_fasta": {
                     "type": "string",
                     "description": "Fasta reference file for host contamination removal.",
